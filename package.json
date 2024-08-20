@@ -1,0 +1,22 @@
+{
+  "name": "nabzkala",
+  "version": "0.1.0",
+  "description": "The Nabzkala e-commerce platform.",
+  "scripts": {
+    "build": "turbo run build --filter=swr-toolkit",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "playground:dev": "turbo run dev --filter=nabzkala",
+    "playground:build": "turbo run dev --filter=nabzkala"
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3",
+    "turbo": "^2.0.12",
+    "typescript": "^5.5.4"
+  },
+  "packageManager": "pnpm@9.7.0",
+  "engines": {
+    "node": ">=20"
+  }
+}
