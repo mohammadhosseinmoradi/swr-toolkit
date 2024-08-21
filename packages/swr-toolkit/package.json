@@ -1,6 +1,6 @@
 {
   "name": "swr-toolkit",
-  "version": "0.1.0-alpha.0",
+  "version": "0.1.0-alpha.1",
   "description": "An efficient and opinionated approach for work with SWR.",
   "keywords": [
     "swr",
