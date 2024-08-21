@@ -9,7 +9,7 @@ import useSWRMutation, {
 interface QueryDefinition<
   Data = any,
   Error = any,
-  SWRKey extends Key = any,
+  SWRKey extends Key = Key,
   SWROptions = SWRConfiguration<Data, Error, ResolvedFetcher<Data, SWRKey>>,
 > {
   type: "query";
@@ -24,22 +24,28 @@ interface MutationDefinition<
   Data = any,
   Error = any,
   SWRMutationKey extends Key = Key,
-  ExtraArg = never,
-  SWRData = Data,
+  ExtraArg = any,
   SWROptions = SWRMutationConfiguration<
     Data,
     Error,
-    ResolvedMutationFetcher<Data, SWRMutationKey, ExtraArg>,
+    SWRMutationKey,
     ExtraArg,
-    SWRData
+    Data
   >,
 > {
   type: "mutation";
   hook: SWRMutationKey extends () => any
-    ? (config?: SWROptions) => SWRMutationResponse<Data, Error>
+    ? (
+        config?: SWROptions,
+      ) => SWRMutationResponse<Data, Error, SWRMutationKey, ExtraArg>
     : SWRMutationKey extends (arg: infer Arg) => any
-      ? (arg: Arg, config?: SWROptions) => SWRMutationResponse<Data, Error>
-      : (config?: SWROptions) => SWRMutationResponse<Data, Error>;
+      ? (
+          arg: Arg,
+          config?: SWROptions,
+        ) => SWRMutationResponse<Data, Error, SWRMutationKey, ExtraArg>
+      : (
+          config?: SWROptions,
+        ) => SWRMutationResponse<Data, Error, SWRMutationKey, ExtraArg>;
 }
 
 type Key = Arguments | ((args: any) => Arguments);
@@ -72,18 +78,11 @@ interface EndpointBuilder {
     Data = any,
     Error = any,
     SWRMutationKey extends Key = Key,
-    ExtraArg = unknown,
-    SWRData = Data,
+    ExtraArg = any,
   >(
     key: SWRMutationKey,
     fetcher: ResolvedMutationFetcher<Data, SWRMutationKey, ExtraArg>,
-    options?: SWRMutationConfiguration<
-      Data,
-      Error,
-      ResolvedMutationFetcher<Data, SWRMutationKey, ExtraArg>,
-      ExtraArg,
-      SWRData
-    >,
+    options?: SWRMutationConfiguration<Data, Error, SWRMutationKey, ExtraArg>,
   ): MutationDefinition<Data, Error, SWRMutationKey, ExtraArg>;
 }
 
@@ -91,7 +90,7 @@ type ExtractQueryEndpoints<
   Map,
   Data = any,
   Error = any,
-  SWRKey extends Key = any,
+  SWRKey extends Key = Key,
   SWROptions = any,
 > = {
   [K in keyof Map as Map[K] extends QueryDefinition<
@@ -111,8 +110,7 @@ type ExtractMutationEndpoints<
   Data = any,
   Error = any,
   SWRMutationKey extends Key = Key,
-  ExtraArg = never,
-  SWRData = Data,
+  ExtraArg = any,
   SWROptions = any,
 > = {
   [K in keyof Map as Map[K] extends MutationDefinition<
@@ -120,7 +118,6 @@ type ExtractMutationEndpoints<
     Error,
     SWRMutationKey,
     ExtraArg,
-    SWRData,
     SWROptions
   >
     ? `use${Capitalize<string & K>}Mutation`
@@ -129,7 +126,6 @@ type ExtractMutationEndpoints<
     Error,
     SWRMutationKey,
     ExtraArg,
-    SWRData,
     SWROptions
   >
     ? Map[K]["hook"]
@@ -137,7 +133,10 @@ type ExtractMutationEndpoints<
 };
 
 export function createApi<
-  EndpointMap extends Record<string, MutationDefinition> = any,
+  EndpointMap extends Record<
+    string,
+    QueryDefinition | MutationDefinition
+  > = any,
 >({
   endpoints,
 }: {
@@ -157,7 +156,6 @@ export function createApi<
         },
       } as any;
     },
-    // @ts-ignore
     mutation(key, mutationFetcher, options) {
       return {
         type: "mutation",
@@ -169,14 +167,14 @@ export function createApi<
             mergeConfigs(options || ({} as any), configOverride as any) as any,
           );
         },
-      };
+      } as any;
     },
   };
 
   const endpointMap = endpoints(builder);
 
   const queryEndpoints = Object.entries(endpointMap)
-    .filter(([_, value]) => value.type === ("query" as any))
+    .filter(([_, value]) => value.type === "query")
     .reduce((acc, [key, value]) => {
       const prefixedKey =
         `use${capitalize(key)}Query` as keyof ExtractQueryEndpoints<EndpointMap>;
