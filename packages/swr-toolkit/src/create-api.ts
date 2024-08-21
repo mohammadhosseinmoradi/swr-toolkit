@@ -1,11 +1,11 @@
-import useSWR, { SWRResponse, Fetcher, SWRConfiguration } from "swr";
-import { Arguments } from "swr/_internal";
+import useSWR, { SWRResponse, Fetcher } from "swr";
+import { Arguments, mergeConfigs, SWRConfiguration } from "swr/_internal";
 
 interface QueryDefinition<
   Data = any,
-  SWRKey = any,
   Error = any,
-  SWROptions = any,
+  SWRKey extends Key = any,
+  SWROptions = SWRConfiguration<Data, Error, ResolvedFetcher<Data, SWRKey>>,
 > {
   type: "query";
   execute: (params: SWRKey, config?: SWROptions) => SWRResponse<Data, Error>;
@@ -24,46 +24,56 @@ type ResolvedKey<T extends Key> = T extends (...args: any) => infer R
     : never
   : T;
 
-type ResolvedFetcher<Data, SWRKey extends Key> = Fetcher<
+type ResolvedFetcher<Data = any, SWRKey extends Key = Key> = Fetcher<
   Data,
   ResolvedKey<SWRKey>
 >;
 
 interface EndpointBuilder {
-  query<
-    Data = any,
-    Error = any,
-    SWRKey extends Key = Key,
-    SWROptions extends
-      | SWRConfiguration<Data, Error, ResolvedFetcher<Data, SWRKey>>
-      | undefined =
-      | SWRConfiguration<Data, Error, ResolvedFetcher<Data, SWRKey>>
-      | undefined,
-  >(
+  query<Data = any, Error = any, SWRKey extends Key = Key>(
     key: SWRKey,
     fetcher: ResolvedFetcher<Data, SWRKey>,
-    config?: SWROptions,
-  ): QueryDefinition<Data, SWRKey, Error, SWROptions>;
+    config?: SWRConfiguration<Data, Error, ResolvedFetcher<Data, SWRKey>>,
+  ): QueryDefinition<Data, Error, SWRKey>;
 }
 
-type ExtractQueryEndpoints<Map, Data = any, SWRKey = any, Error = any> = {
-  [K in keyof Map as Map[K] extends QueryDefinition<Data, SWRKey, Error>
+type ExtractQueryEndpoints<
+  Map,
+  Data = any,
+  Error = any,
+  SWRKey extends Key = any,
+  SWROptions = any,
+> = {
+  [K in keyof Map as Map[K] extends QueryDefinition<
+    Data,
+    Error,
+    SWRKey,
+    SWROptions
+  >
     ? `use${Capitalize<string & K>}Query`
-    : never]: Map[K] extends QueryDefinition<Data, SWRKey, Error>
+    : never]: Map[K] extends QueryDefinition<Data, Error, SWRKey, SWROptions>
     ? Map[K]["hook"]
     : never;
 };
 
 export function createApi<
   EndpointMap extends Record<string, QueryDefinition> = any,
->({ endpoints }: { endpoints: (builder: EndpointBuilder) => EndpointMap }) {
+>({
+  endpoints,
+}: {
+  endpoints: (builder: EndpointBuilder) => EndpointMap;
+}): ExtractQueryEndpoints<EndpointMap> {
   const builder: EndpointBuilder = {
     query(key, fetcher, config) {
       return {
         type: "query",
-        execute: (args) => {
+        execute: (args, configOverride) => {
           const resolvedKey = typeof key === "function" ? key(args) : key;
-          return useSWR(resolvedKey, fetcher, config);
+          return useSWR(
+            resolvedKey,
+            fetcher,
+            mergeConfigs(config as any, configOverride as any),
+          );
         },
         hook: this.query as any,
       };
