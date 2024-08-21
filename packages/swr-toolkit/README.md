@@ -78,7 +78,7 @@ import productApi from "./product-api";
 
 export default function Products() {
   const { data } = productApi.useGetProductsQuery();
-  const { triger } = productApi.useAddProductMutation();
+  const { trigger } = productApi.useAddProductMutation();
 
   return (
     <div>
