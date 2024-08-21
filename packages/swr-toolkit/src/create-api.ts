@@ -67,12 +67,12 @@ export function createApi<
     query(key, fetcher, config) {
       return {
         type: "query",
-        execute: (args, configOverride) => {
-          const resolvedKey = typeof key === "function" ? key(args) : key;
+        execute: (...args) => {
+          const [resolvedKey, configOverride] = normalize(key, ...args);
           return useSWR(
             resolvedKey,
             fetcher,
-            mergeConfigs(config as any, configOverride as any),
+            mergeConfigs(config || ({} as any), configOverride as any) as any,
           );
         },
         hook: this.query as any,
@@ -99,3 +99,17 @@ export function createApi<
 function capitalize<T extends string>(s: T): Capitalize<T> {
   return (s.charAt(0).toUpperCase() + s.slice(1)) as Capitalize<T>;
 }
+
+export const normalize = (key: any, ...args: any) => {
+  let resolvedKey = typeof key === "function" ? key(args?.[0]) : key;
+  let configOverride = args?.[1] || {};
+  if (args.length > 1) {
+    resolvedKey = typeof key === "function" ? key(args?.[0]) : key;
+    configOverride = args?.[1] || {};
+  } else if (typeof key === "function" && key.length > 0) {
+    resolvedKey = key(args?.[0]);
+  } else {
+    configOverride = args?.[0] || ({} as any);
+  }
+  return [resolvedKey, configOverride];
+};
