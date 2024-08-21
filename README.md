@@ -2,7 +2,8 @@
 
 **An efficient and opinionated approach for work with SWR.**
 
-**SWR-Toolkit** offers an efficient and opinionated approach to working with SWR. This package provides a set of utilities and abstractions that simplify common patterns,
+**SWR-Toolkit** offers an efficient and opinionated approach to working with SWR. This package provides a set of
+utilities and abstractions that simplify common patterns,
 enabling you to integrate SWR seamlessly into your application with minimal boilerplate.
 
 Whether you're building a complex data-driven application or just need a straightforward solution for managing server
@@ -40,34 +41,35 @@ configuration (e.g., `product-api.ts`).
 ```typescript
 // product-api.ts
 
-import { createApi } from "swr-toolkit";
+import {createApi} from "swr-toolkit";
 
 const productApi = createApi({
-  endpoints: (builder) => ({
-    getProducts: builder.query("/products", async (key) => {
-      const response = await fetch(key);
-      return (await response.json()) as Result<Product[]>;
+    endpoints: (builder) => ({
+        getProducts: builder.query("/products", async (key) => {
+            const response = await fetch(key);
+            return (await response.json()) as Result<Product[]>;
+        }),
+        addProduct: builder.mutation(
+            (product: AddProduct) => {
+                return {
+                    endpoint: `/products`,
+                    body: product,
+                };
+            },
+            async (key) => {
+                const response = await fetch(key.endpoint, {
+                    method: "POST",
+                    body: JSON.stringify(key.body),
+                });
+                return (await response.json()) as Result<Product>;
+            },
+        ),
     }),
-    addProduct: builder.mutation(
-      (product: AddProduct) => {
-        return {
-          endpoint: `/products`,
-          body: product,
-        };
-      },
-      async (key) => {
-        const response = await fetch(key.endpoint, {
-          method: "POST",
-          body: JSON.stringify(key.body),
-        });
-        return (await response.json()) as Result<Product>;
-      },
-    ),
-  }),
 });
 
 export default productApi;
 ```
+
 ### Second import the API Instance
 
 Import the api instance that you created in `product-api.ts` into your component.
@@ -76,26 +78,27 @@ Import the api instance that you created in `product-api.ts` into your component
 import productApi from "./product-api";
 
 export default function Products() {
-  const { data } = productApi.useGetProductsQuery();
-  const { triger } = productApi.useAddProductsMutation();
+    const {data} = productApi.useGetProductsQuery();
+    const {triger} = productApi.useAddProductMutation();
 
-  return (
-    <div>
-      {JSON.stringify(data)}
-      <button
-        onClick={() =>
-          triger({
-            name: "Product name",
-          })
-        }
-      >
-        Add
-      </button>
-    </div>
-  );
+    return (
+        <div>
+            {JSON.stringify(data)}
+            <button
+                onClick={() =>
+                    triger({
+                        name: "Product name",
+                    })
+                }
+            >
+                Add
+            </button>
+        </div>
+    );
 }
 ```
 
 ## Documentation
 
-For more detailed information on advanced usage, configuration options, and API features, please refer to the \* \*[SWR-Toolkit Documentation](#)\*\*.
+For more detailed information on advanced usage, configuration options, and API features, please refer to the *
+*[SWR-Toolkit Documentation](#)**.
