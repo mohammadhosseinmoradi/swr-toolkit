@@ -3,81 +3,69 @@ import { Arguments } from "swr/_internal";
 
 interface QueryDefinition<
   Data = any,
-  Params = any,
+  SWRKey = any,
   Error = any,
   SWROptions = any,
 > {
   type: "query";
-  execute: (params: Params, config?: SWROptions) => SWRResponse<Data, Error>;
+  execute: (params: SWRKey, config?: SWROptions) => SWRResponse<Data, Error>;
+  hook: SWRKey extends () => any
+    ? (config?: SWROptions) => SWRResponse<Data, Error>
+    : SWRKey extends (arg: infer Arg) => any
+      ? (arg: Arg, config?: SWROptions) => SWRResponse<Data, Error>
+      : (config?: SWROptions) => SWRResponse<Data, Error>;
 }
 
-type Key<Params extends any[] = any[]> =
-  | Arguments
-  | ((...args: Params) => Arguments);
+type Key = Arguments | ((args: any) => Arguments);
 
-type ResolvedKey<T> = T extends (...args: any[]) => infer R ? R : T;
+type ResolvedKey<T extends Key> = T extends (...args: any) => infer R
+  ? R extends Key
+    ? R
+    : never
+  : T;
 
-type ResolvedKeyParams<T> = T extends (args: infer P) => any ? P : any;
+type ResolvedFetcher<Data, SWRKey extends Key> = Fetcher<
+  Data,
+  ResolvedKey<SWRKey>
+>;
 
 interface EndpointBuilder {
   query<
     Data = any,
     Error = any,
-    SWRKey extends Key<ResolvedKeyParams<SWRKey>> = Key,
+    SWRKey extends Key = Key,
     SWROptions extends
-      | SWRConfiguration<Data, Error, Fetcher<Data, SWRKey>>
+      | SWRConfiguration<Data, Error, ResolvedFetcher<Data, SWRKey>>
       | undefined =
-      | SWRConfiguration<Data, Error, Fetcher<Data, SWRKey>>
+      | SWRConfiguration<Data, Error, ResolvedFetcher<Data, SWRKey>>
       | undefined,
   >(
     key: SWRKey,
-    fetcher: Fetcher<Data, SWRKey>,
+    fetcher: ResolvedFetcher<Data, SWRKey>,
     config?: SWROptions,
-  ): QueryDefinition<Data, ResolvedKeyParams<SWRKey>, Error>;
+  ): QueryDefinition<Data, SWRKey, Error, SWROptions>;
 }
 
-type ExtractQueryEndpoints<Map, Data, Params, Error> = {
-  [K in keyof Map as Map[K] extends QueryDefinition<Data, Params, Error>
+type ExtractQueryEndpoints<Map, Data = any, SWRKey = any, Error = any> = {
+  [K in keyof Map as Map[K] extends QueryDefinition<Data, SWRKey, Error>
     ? `use${Capitalize<string & K>}Query`
-    : never]: Map[K] extends QueryDefinition<Data, Params, Error>
-    ? Map[K]["execute"]
+    : never]: Map[K] extends QueryDefinition<Data, SWRKey, Error>
+    ? Map[K]["hook"]
     : never;
 };
 
 export function createApi<
-  Data = any,
-  Error = any,
-  SWRKey extends Key<ResolvedKeyParams<SWRKey>> = Key,
-  SWROptions extends
-    | SWRConfiguration<Data, Error, Fetcher<Data, SWRKey>>
-    | undefined =
-    | SWRConfiguration<Data, Error, Fetcher<Data, SWRKey>>
-    | undefined,
-  EndpointMap extends Record<
-    string,
-    QueryDefinition<Data, ResolvedKeyParams<SWRKey>, Error, SWROptions>
-  > = any,
->({
-  endpoints,
-}: {
-  endpoints: (builder: EndpointBuilder) => EndpointMap;
-}): ExtractQueryEndpoints<EndpointMap, Data, ResolvedKeyParams<SWRKey>, Error> {
-  type ExtractQueryEndpointsTyped = ExtractQueryEndpoints<
-    EndpointMap,
-    Data,
-    ResolvedKeyParams<SWRKey>,
-    Error
-  >;
-
+  EndpointMap extends Record<string, QueryDefinition> = any,
+>({ endpoints }: { endpoints: (builder: EndpointBuilder) => EndpointMap }) {
   const builder: EndpointBuilder = {
     query(key, fetcher, config) {
       return {
         type: "query",
-        execute: (...args) => {
-          const resolvedKey =
-            typeof key === "function" ? key(...(args as any)) : key;
+        execute: (args) => {
+          const resolvedKey = typeof key === "function" ? key(args) : key;
           return useSWR(resolvedKey, fetcher, config);
         },
+        hook: this.query as any,
       };
     },
   };
@@ -88,16 +76,11 @@ export function createApi<
     .filter(([_, value]) => value.type === "query")
     .reduce((acc, [key, value]) => {
       const prefixedKey =
-        `use${capitalize(key)}Query` as keyof ExtractQueryEndpoints<
-          EndpointMap,
-          Data,
-          ResolvedKeyParams<SWRKey>,
-          Error
-        >;
+        `use${capitalize(key)}Query` as keyof ExtractQueryEndpoints<EndpointMap>;
       acc[prefixedKey] =
-        value.execute as ExtractQueryEndpointsTyped[typeof prefixedKey];
+        value.execute as ExtractQueryEndpoints<EndpointMap>[typeof prefixedKey];
       return acc;
-    }, {} as ExtractQueryEndpointsTyped);
+    }, {} as ExtractQueryEndpoints<EndpointMap>);
 
   return { ...queryEndpoints };
 }
