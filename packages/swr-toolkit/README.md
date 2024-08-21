@@ -2,7 +2,8 @@
 
 **An efficient and opinionated approach for work with SWR.**
 
-**SWR-Toolkit** offers an efficient and opinionated approach to working with SWR. This package provides a set of utilities and abstractions that simplify common patterns,
+**SWR-Toolkit** offers an efficient and opinionated approach to working with SWR. This package provides a set of
+utilities and abstractions that simplify common patterns,
 enabling you to integrate SWR seamlessly into your application with minimal boilerplate.
 
 Whether you're building a complex data-driven application or just need a straightforward solution for managing server
@@ -49,16 +50,11 @@ const productApi = createApi({
       return (await response.json()) as Result<Product[]>;
     }),
     addProduct: builder.mutation(
-      (product: AddProduct) => {
-        return {
-          endpoint: `/products`,
-          body: product,
-        };
-      },
-      async (key) => {
-        const response = await fetch(key.endpoint, {
+      "/products",
+      async (key, { arg }: { arg: AddProduct }) => {
+        const response = await fetch(key, {
           method: "POST",
-          body: JSON.stringify(key.body),
+          body: JSON.stringify(arg),
         });
         return (await response.json()) as Result<Product>;
       },
@@ -85,7 +81,7 @@ export default function Products() {
       {JSON.stringify(data)}
       <button
         onClick={() =>
-          triger({
+          trigger({
             name: "Product name",
           })
         }
@@ -99,4 +95,4 @@ export default function Products() {
 
 ## Documentation
 
-For more detailed information on advanced usage, configuration options, and API features, please refer to the **[SWR-Toolkit Documentation](#)**.
+For more detailed information on advanced usage, configuration options, and API features, please refer to the \* \*[SWR-Toolkit Documentation](#)\*\*.

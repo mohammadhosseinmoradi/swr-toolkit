@@ -50,16 +50,11 @@ const productApi = createApi({
       return (await response.json()) as Result<Product[]>;
     }),
     addProduct: builder.mutation(
-      (product: AddProduct) => {
-        return {
-          endpoint: `/products`,
-          body: product,
-        };
-      },
-      async (key) => {
-        const response = await fetch(key.endpoint, {
+      "/products",
+      async (key, { arg }: { arg: AddProduct }) => {
+        const response = await fetch(key, {
           method: "POST",
-          body: JSON.stringify(key.body),
+          body: JSON.stringify(arg),
         });
         return (await response.json()) as Result<Product>;
       },
@@ -86,7 +81,7 @@ export default function Products() {
       {JSON.stringify(data)}
       <button
         onClick={() =>
-          triger({
+          trigger({
             name: "Product name",
           })
         }
